@@ -37,7 +37,11 @@ func createUser(c echo.Context) error {
 
 func getUser(c echo.Context) error {
 	id, _ := strconv.Atoi(c.Param("id"))
-	return c.JSON(http.StatusOK, users[id])
+	if users[id] != nil {
+		return c.JSON(http.StatusOK, users[id])
+	} else {
+		return c.NoContent(http.StatusNotFound)
+	}
 }
 
 func updateUser(c echo.Context) error {
