@@ -1,0 +1,6 @@
+{
+ "log": {
+    "format": "[${time_rfc3339_nano}] ${id} -- ${method} ${uri} ${status}\n",
+    "path": "log/server.log"
+  }
+}

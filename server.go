@@ -5,11 +5,16 @@ import (
 	"strconv"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/mattn/go-jsonpointer"
 	"os"
 	"os/signal"
 	"context"
 	"time"
+	"io/ioutil"
+	"encoding/json"
 )
+
+const configFilePath = "config/config.json"
 
 type (
 	user struct {
@@ -18,10 +23,50 @@ type (
 	}
 )
 
+type Config struct {
+	filePath	string
+	raw			interface{}
+}
+
 var (
 	users 	= map[int]*user{}
 	seq 	= 1
 )
+
+func (config *Config) isExistConfig() bool {
+	_, err := os.Stat(config.filePath)
+	return err == nil
+}
+
+func (config *Config) load() bool {
+	if config.isExistConfig() {
+		raw, err := ioutil.ReadFile(config.filePath)
+		if err == nil {
+			json.Unmarshal([]byte(raw), &config.raw)
+		} else {
+			return false
+		}
+	}
+	return true
+}
+
+func (config *Config) getString(pointer string) string {
+	value, err := jsonpointer.Get(config.raw, pointer)
+	if err != nil {
+		panic(err)
+	} else {
+		return value.(string)
+	}
+}
+
+func (config *Config) getInt(pointer string) int64 {
+	value, err := jsonpointer.Get(config.raw, pointer)
+	if err != nil {
+		panic(err)
+	} else {
+		return value.(int64)
+	}
+}
 
 // --------
 // Handlers
@@ -69,11 +114,19 @@ func deleteUser(c echo.Context) error {
 }
 
 func main() {
+	// Load config
+	config := Config{filePath: configFilePath}
+	config.load()
+
 	e := echo.New()
 
 	// Middleware
-	e.Use(middleware.Logger())
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: config.getString("/log/format"),
+	}))
 	e.Use(middleware.Recover())
+
+	e.Logger.Debugf("%v", config)
 
 	// Routes
 	e.GET("/", root)
