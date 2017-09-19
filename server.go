@@ -5,6 +5,10 @@ import (
 	"strconv"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"os"
+	"os/signal"
+	"context"
+	"time"
 )
 
 type (
@@ -78,5 +82,18 @@ func main() {
 	e.PUT("/users/:id", updateUser)
 	e.DELETE("/users/:id", deleteUser)
 
-	e.Logger.Fatal(e.Start(":1323"))
+	go func() {
+		if err := e.Start(":1323"); err != nil {
+			e.Logger.Info("shutting down the server")
+		}
+	}()
+
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
 }
