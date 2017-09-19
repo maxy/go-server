@@ -23,6 +23,10 @@ var (
 // Handlers
 // --------
 
+func root(c echo.Context) error {
+	return c.JSON(http.StatusOK, "OK")
+}
+
 func createUser(c echo.Context) error {
 	u := &user{
 		ID: seq,
@@ -68,6 +72,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// Routes
+	e.GET("/", root)
 	e.POST("/users", createUser)
 	e.GET("/users/:id", getUser)
 	e.PUT("/users/:id", updateUser)
