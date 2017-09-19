@@ -12,6 +12,8 @@ import (
 	"time"
 	"io/ioutil"
 	"encoding/json"
+	"path/filepath"
+	"io"
 )
 
 const configFilePath = "config/config.json"
@@ -25,6 +27,7 @@ type (
 
 type Config struct {
 	filePath	string
+	rootPath	string
 	raw			interface{}
 }
 
@@ -65,6 +68,39 @@ func (config *Config) getInt(pointer string) int64 {
 		panic(err)
 	} else {
 		return value.(int64)
+	}
+}
+
+func buildConfig() Config {
+	// Load config
+	config := Config{filePath: configFilePath}
+	_root, _ := os.Getwd()
+	config.rootPath = filepath.Dir(_root)
+	config.load()
+	return config
+}
+
+// building LoggerConfig
+func buildLoggerConfig(config *Config) middleware.LoggerConfig {
+	_format := config.getString("/log/format")
+
+	_filePath := config.getString("/log/path")
+
+	_absPath, _ := filepath.Abs(_filePath)
+	var fp io.Writer = os.Stdout
+
+	if _, err := os.Stat(_absPath); err != nil {
+		os.Create(_absPath)
+		os.Chmod(_absPath, 0744)
+	}
+	fp, err := os.OpenFile(_absPath, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		panic(err)
+	}
+
+	return middleware.LoggerConfig{
+		Format: _format,
+		Output: fp,
 	}
 }
 
@@ -114,16 +150,12 @@ func deleteUser(c echo.Context) error {
 }
 
 func main() {
-	// Load config
-	config := Config{filePath: configFilePath}
-	config.load()
+	config := buildConfig()
 
 	e := echo.New()
 
 	// Middleware
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: config.getString("/log/format"),
-	}))
+	e.Use(middleware.LoggerWithConfig(buildLoggerConfig(&config)))
 	e.Use(middleware.Recover())
 
 	e.Logger.Debugf("%v", config)
